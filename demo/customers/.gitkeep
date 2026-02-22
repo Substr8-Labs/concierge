@@ -1,0 +1,3 @@
+# Customer data goes here
+# Each customer gets their own folder: customers/{id}/
+# With: customer.md (profile) + memory.md (history)

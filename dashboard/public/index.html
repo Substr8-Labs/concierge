@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Concierge Dashboard</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f0f;
+      color: #e0e0e0;
+      min-height: 100vh;
+    }
+    
+    .header {
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #22c55e;
+    }
+    
+    .header button {
+      background: #333;
+      color: #e0e0e0;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .header button:hover {
+      background: #444;
+    }
+    
+    .header button.active {
+      background: #22c55e;
+      color: #000;
+    }
+    
+    .container {
+      display: flex;
+      height: calc(100vh - 60px);
+    }
+    
+    .sidebar {
+      width: 300px;
+      background: #1a1a1a;
+      border-right: 1px solid #333;
+      overflow-y: auto;
+    }
+    
+    .sidebar h2 {
+      padding: 1rem;
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      color: #888;
+      border-bottom: 1px solid #333;
+    }
+    
+    .customer-list {
+      list-style: none;
+    }
+    
+    .customer-item {
+      padding: 1rem;
+      border-bottom: 1px solid #262626;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .customer-item:hover, .customer-item.active {
+      background: #262626;
+    }
+    
+    .customer-item .name {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+    }
+    
+    .customer-item .meta {
+      font-size: 0.75rem;
+      color: #888;
+    }
+    
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2rem;
+    }
+    
+    .empty-state {
+      text-align: center;
+      color: #666;
+      padding: 4rem;
+    }
+    
+    .customer-header {
+      margin-bottom: 2rem;
+    }
+    
+    .customer-header h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+    
+    .customer-header .badge {
+      display: inline-block;
+      background: #22c55e20;
+      color: #22c55e;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      margin-right: 0.5rem;
+    }
+    
+    .section {
+      background: #1a1a1a;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+    }
+    
+    .section-header {
+      padding: 1rem;
+      border-bottom: 1px solid #333;
+      font-weight: 500;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .section-content {
+      padding: 1rem;
+    }
+    
+    .profile-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+    
+    .profile-item {
+      background: #262626;
+      padding: 0.75rem;
+      border-radius: 6px;
+    }
+    
+    .profile-item .label {
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 0.25rem;
+    }
+    
+    .profile-item .value {
+      font-weight: 500;
+    }
+    
+    .timeline {
+      position: relative;
+      padding-left: 1.5rem;
+    }
+    
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 0.5rem;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #333;
+    }
+    
+    .timeline-item {
+      position: relative;
+      padding-bottom: 1.5rem;
+    }
+    
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -1.25rem;
+      top: 0.25rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #22c55e;
+    }
+    
+    .timeline-item .date {
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 0.25rem;
+    }
+    
+    .timeline-item .title {
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+    }
+    
+    .timeline-item .details {
+      font-size: 0.875rem;
+      color: #aaa;
+    }
+    
+    .timeline-item .mood {
+      display: inline-block;
+      padding: 0.125rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      margin-top: 0.5rem;
+    }
+    
+    .mood-frustrated { background: #ef444420; color: #ef4444; }
+    .mood-neutral { background: #eab30820; color: #eab308; }
+    .mood-happy { background: #22c55e20; color: #22c55e; }
+    
+    .raw-view {
+      background: #0a0a0a;
+      padding: 1rem;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 0.875rem;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    .insights-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .insight-card {
+      background: #1a1a1a;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .insight-card .label {
+      font-size: 0.75rem;
+      color: #888;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+    }
+    
+    .insight-card .value {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
+    .insight-card .subtext {
+      font-size: 0.75rem;
+      color: #888;
+      margin-top: 0.25rem;
+    }
+    
+    .score-high { color: #22c55e; }
+    .score-medium { color: #eab308; }
+    .score-low { color: #ef4444; }
+    
+    .risk-high { color: #ef4444; }
+    .risk-medium { color: #eab308; }
+    .risk-low { color: #22c55e; }
+    
+    .trend-improving { color: #22c55e; }
+    .trend-stable { color: #888; }
+    .trend-declining { color: #ef4444; }
+    
+    .signals-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .signal-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+    }
+    
+    .signal-tag.churn {
+      background: #ef444420;
+      color: #ef4444;
+    }
+    
+    .signal-tag.upsell {
+      background: #22c55e20;
+      color: #22c55e;
+    }
+    
+    .action-item {
+      display: flex;
+      align-items: center;
+      padding: 0.75rem;
+      background: #262626;
+      border-radius: 6px;
+      margin-bottom: 0.5rem;
+    }
+    
+    .action-priority {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.75rem;
+    }
+    
+    .action-priority.high { background: #ef4444; }
+    .action-priority.medium { background: #eab308; }
+    .action-priority.low { background: #22c55e; }
+    
+    .action-text {
+      flex: 1;
+    }
+    
+    .action-text .title {
+      font-weight: 500;
+      margin-bottom: 0.125rem;
+    }
+    
+    .action-text .reason {
+      font-size: 0.75rem;
+      color: #888;
+    }
+    
+    .topics-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    
+    .topic-tag {
+      background: #3b82f620;
+      color: #3b82f6;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+    }
+    
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #333;
+    }
+    
+    .tab {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      color: #888;
+    }
+    
+    .tab:hover { color: #e0e0e0; }
+    .tab.active { color: #22c55e; border-color: #22c55e; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎯 Concierge Dashboard</h1>
+    <div style="display: flex; gap: 1rem;">
+      <button onclick="showView('customers')" id="btn-customers" class="active">Customers</button>
+      <button onclick="showView('telemetry')" id="btn-telemetry">Telemetry</button>
+      <button onclick="refresh()">↻ Refresh</button>
+    </div>
+  </div>
+  
+  <div class="container" id="customersView">
+    <div class="sidebar">
+      <h2>Customers</h2>
+      <ul class="customer-list" id="customerList">
+        <li class="customer-item">Loading...</li>
+      </ul>
+    </div>
+    
+    <div class="main" id="mainContent">
+      <div class="empty-state">
+        <p>Select a customer to view their profile and interaction history</p>
+      </div>
+    </div>
+  </div>
+  
+  <div class="container" id="telemetryView" style="display: none;">
+    <div class="main" style="width: 100%; padding: 2rem;">
+      <h2 style="margin-bottom: 1.5rem;">📊 Platform Telemetry</h2>
+      
+      <div class="insights-grid" id="telemetryStats">
+        <div class="insight-card">
+          <div class="label">Services</div>
+          <div class="value" id="stat-services">-</div>
+        </div>
+        <div class="insight-card">
+          <div class="label">Total Traces</div>
+          <div class="value" id="stat-traces">-</div>
+        </div>
+        <div class="insight-card">
+          <div class="label">Avg Duration</div>
+          <div class="value" id="stat-duration">-</div>
+          <div class="subtext">ms</div>
+        </div>
+        <div class="insight-card">
+          <div class="label">Errors</div>
+          <div class="value" id="stat-errors">-</div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-header">🔧 Operations</div>
+        <div class="section-content" id="operationsList">
+          <p style="color: #666;">Loading...</p>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-header">⏱️ Recent Activity</div>
+        <div class="section-content" id="recentActivity">
+          <p style="color: #666;">Loading...</p>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-header">🏗️ Platform Services (Coming Soon)</div>
+        <div class="section-content">
+          <div class="profile-grid">
+            <div class="profile-item">
+              <div class="label">FDAA</div>
+              <div class="value">Snapshots, Verifications, Hash Chains</div>
+            </div>
+            <div class="profile-item">
+              <div class="label">ACC</div>
+              <div class="value">Tokens, Permission Checks, Denials</div>
+            </div>
+            <div class="profile-item">
+              <div class="label">DCT</div>
+              <div class="value">Delegations, Validations, Revocations</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    let customers = [];
+    let selectedCustomer = null;
+    
+    async function loadCustomers() {
+      const res = await fetch('/api/customers');
+      customers = await res.json();
+      renderCustomerList();
+    }
+    
+    function renderCustomerList() {
+      const list = document.getElementById('customerList');
+      if (customers.length === 0) {
+        list.innerHTML = '<li class="customer-item">No customers yet</li>';
+        return;
+      }
+      
+      list.innerHTML = customers.map(c => `
+        <li class="customer-item ${selectedCustomer === c.id ? 'active' : ''}" 
+            onclick="selectCustomer('${c.id}')">
+          <div class="name">${c.name}</div>
+          <div class="meta">${c.interactions} interaction${c.interactions !== 1 ? 's' : ''}</div>
+        </li>
+      `).join('');
+    }
+    
+    async function selectCustomer(id) {
+      selectedCustomer = id;
+      renderCustomerList();
+      
+      const [detailsRes, rawRes, insightsRes] = await Promise.all([
+        fetch(`/api/customers/${id}`),
+        fetch(`/api/customers/${id}/raw`),
+        fetch(`/api/customers/${id}/insights`)
+      ]);
+      
+      const { customer, memory } = await detailsRes.json();
+      const { customerMd, memoryMd } = await rawRes.json();
+      const insights = await insightsRes.json();
+      
+      renderCustomerDetail(customer, memory, customerMd, memoryMd, insights);
+    }
+    
+    function renderCustomerDetail(customer, memory, customerMd, memoryMd, insights) {
+      const main = document.getElementById('mainContent');
+      
+      const moodClass = (mood) => {
+        if (!mood) return '';
+        const m = mood.toLowerCase();
+        if (m.includes('frustrat') || m.includes('angry')) return 'mood-frustrated';
+        if (m.includes('happy') || m.includes('satisfied')) return 'mood-happy';
+        return 'mood-neutral';
+      };
+      
+      const healthClass = insights.healthScore >= 70 ? 'score-high' : insights.healthScore >= 40 ? 'score-medium' : 'score-low';
+      const trendIcon = insights.sentimentTrend === 'improving' ? '↗' : insights.sentimentTrend === 'declining' ? '↘' : '→';
+      
+      main.innerHTML = `
+        <div class="customer-header">
+          <h2>${customer.name || customer.id}</h2>
+          ${customer.plan ? `<span class="badge">${customer.plan}</span>` : ''}
+          ${customer.id ? `<span class="badge">ID: ${customer.id}</span>` : ''}
+        </div>
+        
+        <!-- Insights Panel -->
+        <div class="insights-grid">
+          <div class="insight-card">
+            <div class="label">Health Score</div>
+            <div class="value ${healthClass}">${insights.healthScore}</div>
+            <div class="subtext">out of 100</div>
+          </div>
+          <div class="insight-card">
+            <div class="label">Churn Risk</div>
+            <div class="value risk-${insights.churnRisk}">${insights.churnRisk.toUpperCase()}</div>
+            <div class="subtext">${insights.signals.filter(s => s.type === 'churn').length} signals</div>
+          </div>
+          <div class="insight-card">
+            <div class="label">Upsell Potential</div>
+            <div class="value" style="color: ${insights.upsellPotential === 'high' ? '#22c55e' : insights.upsellPotential === 'medium' ? '#eab308' : '#888'}">${insights.upsellPotential.toUpperCase()}</div>
+            <div class="subtext">${insights.signals.filter(s => s.type === 'upsell').length} signals</div>
+          </div>
+          <div class="insight-card">
+            <div class="label">Sentiment Trend</div>
+            <div class="value trend-${insights.sentimentTrend}">${trendIcon} ${insights.sentimentTrend}</div>
+            <div class="subtext">${insights.interactionStats.total} interactions</div>
+          </div>
+        </div>
+        
+        ${insights.suggestedActions.length > 0 ? `
+        <div class="section">
+          <div class="section-header">🎯 Suggested Actions</div>
+          <div class="section-content">
+            ${insights.suggestedActions.map(a => `
+              <div class="action-item">
+                <div class="action-priority ${a.priority}"></div>
+                <div class="action-text">
+                  <div class="title">${a.action}</div>
+                  <div class="reason">${a.reason}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        ` : ''}
+        
+        ${insights.signals.length > 0 ? `
+        <div class="section">
+          <div class="section-header">📡 Detected Signals</div>
+          <div class="section-content">
+            <div class="signals-list">
+              ${insights.signals.map(s => `
+                <span class="signal-tag ${s.type}">${s.type === 'churn' ? '⚠️' : '💰'} ${s.text}</span>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+        ` : ''}
+        
+        ${insights.mentionedTopics.length > 0 ? `
+        <div class="section">
+          <div class="section-header">💬 Topics Discussed</div>
+          <div class="section-content">
+            <div class="topics-list">
+              ${insights.mentionedTopics.map(t => `
+                <span class="topic-tag">${t.topic} (${t.count})</span>
+              `).join('')}
+            </div>
+          </div>
+        </div>
+        ` : ''}
+        
+        <div class="section">
+          <div class="section-header">Profile</div>
+          <div class="section-content">
+            <div class="profile-grid">
+              ${customer.email ? `<div class="profile-item"><div class="label">Email</div><div class="value">${customer.email}</div></div>` : ''}
+              ${customer.phone ? `<div class="profile-item"><div class="label">Phone</div><div class="value">${customer.phone}</div></div>` : ''}
+              ${customer.mobile ? `<div class="profile-item"><div class="label">Mobile</div><div class="value">${customer.mobile}</div></div>` : ''}
+              ${customer.plan ? `<div class="profile-item"><div class="label">Plan</div><div class="value">${customer.plan}</div></div>` : ''}
+              ${customer.since ? `<div class="profile-item"><div class="label">Customer Since</div><div class="value">${customer.since}</div></div>` : ''}
+              ${customer.ltv ? `<div class="profile-item"><div class="label">LTV</div><div class="value">${customer.ltv}</div></div>` : ''}
+            </div>
+          </div>
+        </div>
+        
+        ${customer.preferences && Object.keys(customer.preferences).length > 0 ? `
+        <div class="section">
+          <div class="section-header">🎭 Communication Preferences</div>
+          <div class="section-content">
+            <div class="profile-grid">
+              ${customer.preferences.style ? `<div class="profile-item"><div class="label">Style</div><div class="value">${customer.preferences.style}</div></div>` : ''}
+              ${customer.preferences.pace ? `<div class="profile-item"><div class="label">Pace</div><div class="value">${customer.preferences.pace}</div></div>` : ''}
+              ${customer.preferences.tone ? `<div class="profile-item"><div class="label">Tone</div><div class="value">${customer.preferences.tone}</div></div>` : ''}
+              ${customer.preferences.technical_level ? `<div class="profile-item"><div class="label">Technical Level</div><div class="value">${customer.preferences.technical_level}</div></div>` : ''}
+              ${customer.preferences.voice_preferred ? `<div class="profile-item"><div class="label">Voice Preference</div><div class="value">${customer.preferences.voice_preferred}</div></div>` : ''}
+            </div>
+            ${customer.preferences.note ? `<p style="margin-top: 1rem; color: #888; font-size: 0.875rem;">💡 ${customer.preferences.note}</p>` : ''}
+          </div>
+        </div>
+        ` : ''}
+        
+        <div class="section">
+          <div class="section-header">
+            Interaction Timeline
+            <span style="font-weight: normal; color: #888; font-size: 0.875rem">${memory.length} entries</span>
+          </div>
+          <div class="section-content">
+            ${memory.length === 0 ? '<p style="color: #666">No interactions recorded yet</p>' : `
+              <div class="timeline">
+                ${memory.map(m => `
+                  <div class="timeline-item">
+                    <div class="date">${m.date}</div>
+                    <div class="title">${m.title || 'Interaction'}</div>
+                    ${m.reason ? `<div class="details"><strong>Reason:</strong> ${m.reason}</div>` : ''}
+                    ${m.resolution ? `<div class="details"><strong>Resolution:</strong> ${m.resolution}</div>` : ''}
+                    ${m.mood ? `<span class="mood ${moodClass(m.mood)}">${m.mood}</span>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            `}
+          </div>
+        </div>
+        
+        <div class="section">
+          <div class="tabs">
+            <div class="tab active" onclick="showTab(this, 'customer-raw')">customer.md</div>
+            <div class="tab" onclick="showTab(this, 'memory-raw')">memory.md</div>
+          </div>
+          <div class="section-content">
+            <div id="customer-raw" class="raw-view">${escapeHtml(customerMd) || 'No customer.md file'}</div>
+            <div id="memory-raw" class="raw-view" style="display:none">${escapeHtml(memoryMd) || 'No memory.md file'}</div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function showTab(el, id) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('customer-raw').style.display = id === 'customer-raw' ? 'block' : 'none';
+      document.getElementById('memory-raw').style.display = id === 'memory-raw' ? 'block' : 'none';
+    }
+    
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    
+    function refresh() {
+      loadCustomers();
+      if (selectedCustomer) selectCustomer(selectedCustomer);
+    }
+    
+    // View switching
+    let currentView = 'customers';
+    
+    function showView(view) {
+      currentView = view;
+      document.getElementById('customersView').style.display = view === 'customers' ? 'flex' : 'none';
+      document.getElementById('telemetryView').style.display = view === 'telemetry' ? 'flex' : 'none';
+      document.getElementById('btn-customers').classList.toggle('active', view === 'customers');
+      document.getElementById('btn-telemetry').classList.toggle('active', view === 'telemetry');
+      
+      if (view === 'telemetry') {
+        loadTelemetry();
+      }
+    }
+    
+    async function loadTelemetry() {
+      try {
+        const res = await fetch('/api/telemetry');
+        const data = await res.json();
+        
+        document.getElementById('stat-services').textContent = data.services?.length || 0;
+        document.getElementById('stat-traces').textContent = data.totalTraces || 0;
+        document.getElementById('stat-duration').textContent = data.avgDuration || 0;
+        document.getElementById('stat-errors').textContent = data.errorCount || 0;
+        document.getElementById('stat-errors').className = 'value ' + (data.errorCount > 0 ? 'risk-high' : 'score-high');
+        
+        // Operations
+        const ops = document.getElementById('operationsList');
+        if (data.operations && Object.keys(data.operations).length > 0) {
+          const sorted = Object.entries(data.operations).sort((a, b) => b[1] - a[1]);
+          ops.innerHTML = `
+            <div class="topics-list">
+              ${sorted.map(([op, count]) => `
+                <span class="topic-tag" style="cursor: pointer" onclick="showOperationTraces('${op}')">${op} (${count})</span>
+              `).join('')}
+            </div>
+          `;
+        } else {
+          ops.innerHTML = '<p style="color: #666;">No operations recorded</p>';
+        }
+        
+        // Recent activity
+        const recent = document.getElementById('recentActivity');
+        if (data.recentActivity && data.recentActivity.length > 0) {
+          recent.innerHTML = `
+            <div class="timeline">
+              ${data.recentActivity.slice(0, 10).map(a => `
+                <div class="timeline-item">
+                  <div class="date">${new Date(a.time).toLocaleString()}</div>
+                  <div class="title">${a.operation}</div>
+                  <div class="details">${(a.duration / 1000).toFixed(2)}ms · Trace: ${a.traceId.substring(0, 16)}...</div>
+                </div>
+              `).join('')}
+            </div>
+          `;
+        } else {
+          recent.innerHTML = '<p style="color: #666;">No recent activity</p>';
+        }
+      } catch (e) {
+        console.error('Telemetry load failed:', e);
+      }
+    }
+    
+    async function showOperationTraces(operation) {
+      try {
+        const res = await fetch(`/api/telemetry/traces/${encodeURIComponent(operation)}`);
+        const traces = await res.json();
+        alert(`${operation}: ${traces.length} traces\n\n${traces.slice(0, 5).map(t => 
+          `${new Date(t.time).toLocaleString()} - ${(t.duration/1000).toFixed(2)}ms`
+        ).join('\n')}`);
+      } catch (e) {
+        console.error('Failed to load traces:', e);
+      }
+    }
+    
+    // Auto-refresh every 10 seconds
+    setInterval(() => {
+      if (currentView === 'customers') refresh();
+      else if (currentView === 'telemetry') loadTelemetry();
+    }, 10000);
+    
+    // Initial load
+    loadCustomers();
+  </script>
+</body>
+</html>
