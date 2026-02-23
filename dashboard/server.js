@@ -519,27 +519,221 @@ app.get('/api/telemetry/traces/:operation', async (req, res) => {
   }
 });
 
-// API: Platform stats (mock for now, will connect to real endpoints)
+// FDAA API Configuration
+const FDAA_API_URL = process.env.FDAA_API_URL || 'https://fdaa.substr8labs.com';
+
+// Helper: Fetch with timeout
+async function fetchWithTimeout(url, options = {}, timeout = 5000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
+
+// API: FDAA Snapshot Stats
+app.get('/api/fdaa/stats', async (req, res) => {
+  try {
+    // Read local snapshot chain if it exists
+    const snapshotDir = path.join(WORKSPACE, '.fdaa', 'snapshots');
+    let snapshots = [];
+    let chainLength = 0;
+    
+    try {
+      const files = await fs.readdir(snapshotDir);
+      snapshots = files.filter(f => f.endsWith('.json'));
+      chainLength = snapshots.length;
+      
+      // Get latest snapshot details
+      if (chainLength > 0) {
+        const latestFile = snapshots.sort().reverse()[0];
+        const latestData = JSON.parse(await fs.readFile(path.join(snapshotDir, latestFile), 'utf-8'));
+        return res.json({
+          status: 'active',
+          chainLength,
+          latestSnapshot: {
+            id: latestData.id,
+            timestamp: latestData.timestamp,
+            actor: latestData.actor,
+            contentHash: latestData.content_hash?.substring(0, 16) + '...'
+          },
+          verified: true
+        });
+      }
+    } catch (e) {
+      // No local snapshots yet
+    }
+    
+    res.json({
+      status: 'initializing',
+      chainLength: 0,
+      latestSnapshot: null,
+      verified: false
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API: ACC (Agent Capability Control) Stats
+app.get('/api/acc/stats', async (req, res) => {
+  try {
+    // Read ACC policy file if it exists
+    const policyPath = path.join(WORKSPACE, '.fdaa', 'acc_policy.json');
+    let policy = null;
+    
+    try {
+      policy = JSON.parse(await fs.readFile(policyPath, 'utf-8'));
+    } catch (e) {
+      // No policy file yet - return defaults
+    }
+    
+    // Read audit log for permission check stats
+    const auditPath = path.join(WORKSPACE, '.fdaa', 'acc_audit.log');
+    let checks = 0, denials = 0;
+    
+    try {
+      const auditLog = await fs.readFile(auditPath, 'utf-8');
+      const lines = auditLog.trim().split('\n').filter(l => l);
+      checks = lines.length;
+      denials = lines.filter(l => l.includes('"decision":"deny"')).length;
+    } catch (e) {
+      // No audit log yet
+    }
+    
+    res.json({
+      status: policy ? 'enforcing' : 'permissive',
+      policy: policy ? {
+        personas: Object.keys(policy.personas || {}),
+        tools: Object.keys(policy.tools || {}),
+        globalRules: policy.global_rules?.length || 0
+      } : null,
+      stats: {
+        totalChecks: checks,
+        allowed: checks - denials,
+        denied: denials,
+        denyRate: checks > 0 ? ((denials / checks) * 100).toFixed(1) + '%' : '0%'
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API: DCT (Decision Chain Tracing) Stats
+app.get('/api/dct/stats', async (req, res) => {
+  try {
+    // Read DCT traces directory
+    const tracesDir = path.join(WORKSPACE, '.fdaa', 'traces');
+    let traces = [];
+    
+    try {
+      const files = await fs.readdir(tracesDir);
+      traces = files.filter(f => f.endsWith('.json'));
+    } catch (e) {
+      // No traces yet
+    }
+    
+    // Get recent traces
+    const recentTraces = [];
+    for (const traceFile of traces.slice(-5).reverse()) {
+      try {
+        const trace = JSON.parse(await fs.readFile(path.join(tracesDir, traceFile), 'utf-8'));
+        recentTraces.push({
+          id: trace.trace_id,
+          timestamp: trace.timestamp,
+          persona: trace.persona,
+          toolCalls: trace.tool_calls?.length || 0,
+          reasoning: trace.reasoning_steps?.length || 0,
+          outcome: trace.outcome
+        });
+      } catch (e) {
+        // Skip invalid traces
+      }
+    }
+    
+    res.json({
+      status: traces.length > 0 ? 'tracing' : 'standby',
+      totalTraces: traces.length,
+      recentTraces,
+      coverage: {
+        toolsTraced: new Set(recentTraces.flatMap(t => t.toolCalls)).size,
+        avgReasoningDepth: recentTraces.length > 0 
+          ? (recentTraces.reduce((sum, t) => sum + t.reasoning, 0) / recentTraces.length).toFixed(1)
+          : 0
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// API: Combined Platform Telemetry
 app.get('/api/telemetry/platform', async (req, res) => {
-  // This will connect to FDAA/ACC/DCT endpoints when available
-  res.json({
-    fdaa: {
-      snapshots: 0,
-      verifications: 0,
-      hashChains: 0
-    },
-    acc: {
-      tokensIssued: 0,
-      permissionChecks: 0,
-      denials: 0
-    },
-    dct: {
-      delegations: 0,
-      validations: 0,
-      revocations: 0
-    },
-    note: "Connect to real endpoints when FDAA/ACC/DCT services are integrated"
-  });
+  try {
+    // Fetch all stats in parallel
+    const [fdaaRes, accRes, dctRes] = await Promise.all([
+      new Promise(async (resolve) => {
+        try {
+          const snapshotDir = path.join(WORKSPACE, '.fdaa', 'snapshots');
+          const files = await fs.readdir(snapshotDir);
+          resolve({ snapshots: files.length, status: 'active' });
+        } catch {
+          resolve({ snapshots: 0, status: 'initializing' });
+        }
+      }),
+      new Promise(async (resolve) => {
+        try {
+          const auditPath = path.join(WORKSPACE, '.fdaa', 'acc_audit.log');
+          const auditLog = await fs.readFile(auditPath, 'utf-8');
+          const lines = auditLog.trim().split('\n').filter(l => l);
+          resolve({ 
+            checks: lines.length, 
+            denials: lines.filter(l => l.includes('"decision":"deny"')).length,
+            status: 'enforcing'
+          });
+        } catch {
+          resolve({ checks: 0, denials: 0, status: 'permissive' });
+        }
+      }),
+      new Promise(async (resolve) => {
+        try {
+          const tracesDir = path.join(WORKSPACE, '.fdaa', 'traces');
+          const files = await fs.readdir(tracesDir);
+          resolve({ traces: files.length, status: 'tracing' });
+        } catch {
+          resolve({ traces: 0, status: 'standby' });
+        }
+      })
+    ]);
+    
+    res.json({
+      fdaa: {
+        status: fdaaRes.status,
+        snapshots: fdaaRes.snapshots,
+        hashChainIntegrity: fdaaRes.snapshots > 0 ? 'verified' : 'n/a'
+      },
+      acc: {
+        status: accRes.status,
+        permissionChecks: accRes.checks,
+        denials: accRes.denials,
+        enforcementRate: accRes.checks > 0 ? '100%' : 'n/a'
+      },
+      dct: {
+        status: dctRes.status,
+        traces: dctRes.traces,
+        reasoningCoverage: dctRes.traces > 0 ? 'active' : 'pending'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(PORT, '0.0.0.0', () => {

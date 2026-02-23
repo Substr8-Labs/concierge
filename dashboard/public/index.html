@@ -368,6 +368,26 @@
     
     .tab:hover { color: #e0e0e0; }
     .tab.active { color: #22c55e; border-color: #22c55e; }
+    
+    /* Platform Services Status */
+    .status-dot {
+      font-size: 8px;
+      margin-left: 4px;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    #platformServices .profile-item {
+      background: #1e1e1e;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+    #platformServices .profile-item:hover {
+      border-color: #22c55e;
+    }
   </style>
 </head>
 <body>
@@ -434,21 +454,25 @@
       </div>
       
       <div class="section">
-        <div class="section-header">🏗️ Platform Services (Coming Soon)</div>
-        <div class="section-content">
+        <div class="section-header">🛡️ Platform Services</div>
+        <div class="section-content" id="platformServices">
           <div class="profile-grid">
-            <div class="profile-item">
-              <div class="label">FDAA</div>
-              <div class="value">Snapshots, Verifications, Hash Chains</div>
+            <div class="profile-item" id="fdaaStatus">
+              <div class="label">FDAA <span class="status-dot" id="fdaaDot">●</span></div>
+              <div class="value" id="fdaaValue">Loading...</div>
             </div>
-            <div class="profile-item">
-              <div class="label">ACC</div>
-              <div class="value">Tokens, Permission Checks, Denials</div>
+            <div class="profile-item" id="accStatus">
+              <div class="label">ACC <span class="status-dot" id="accDot">●</span></div>
+              <div class="value" id="accValue">Loading...</div>
             </div>
-            <div class="profile-item">
-              <div class="label">DCT</div>
-              <div class="value">Delegations, Validations, Revocations</div>
+            <div class="profile-item" id="dctStatus">
+              <div class="label">DCT <span class="status-dot" id="dctDot">●</span></div>
+              <div class="value" id="dctValue">Loading...</div>
             </div>
+          </div>
+          <div style="margin-top: 12px; font-size: 11px; color: #666;">
+            <span id="platformTimestamp">Last updated: --</span>
+            <button onclick="loadPlatformServices()" style="margin-left: 10px; padding: 2px 8px; font-size: 10px; cursor: pointer;">↻ Refresh</button>
           </div>
         </div>
       </div>
@@ -743,14 +767,52 @@
       }
     }
     
+    // Load Platform Services (FDAA/ACC/DCT)
+    async function loadPlatformServices() {
+      try {
+        const res = await fetch('/api/telemetry/platform');
+        const data = await res.json();
+        
+        // FDAA Status
+        const fdaaDot = document.getElementById('fdaaDot');
+        const fdaaValue = document.getElementById('fdaaValue');
+        fdaaDot.style.color = data.fdaa.status === 'active' ? '#22c55e' : '#eab308';
+        fdaaValue.innerHTML = `${data.fdaa.snapshots} snapshots · ${data.fdaa.hashChainIntegrity}`;
+        
+        // ACC Status
+        const accDot = document.getElementById('accDot');
+        const accValue = document.getElementById('accValue');
+        accDot.style.color = data.acc.status === 'enforcing' ? '#22c55e' : '#eab308';
+        accValue.innerHTML = `${data.acc.permissionChecks} checks · ${data.acc.denials} denied`;
+        
+        // DCT Status
+        const dctDot = document.getElementById('dctDot');
+        const dctValue = document.getElementById('dctValue');
+        dctDot.style.color = data.dct.status === 'tracing' ? '#22c55e' : '#666';
+        dctValue.innerHTML = `${data.dct.traces} traces · ${data.dct.reasoningCoverage}`;
+        
+        // Timestamp
+        document.getElementById('platformTimestamp').textContent = 
+          `Last updated: ${new Date(data.timestamp).toLocaleTimeString()}`;
+          
+      } catch (e) {
+        console.error('Platform services load failed:', e);
+        document.getElementById('fdaaValue').textContent = 'Unavailable';
+        document.getElementById('accValue').textContent = 'Unavailable';
+        document.getElementById('dctValue').textContent = 'Unavailable';
+      }
+    }
+    
     // Auto-refresh every 10 seconds
     setInterval(() => {
       if (currentView === 'customers') refresh();
       else if (currentView === 'telemetry') loadTelemetry();
+      loadPlatformServices(); // Always refresh platform stats
     }, 10000);
     
     // Initial load
     loadCustomers();
+    loadPlatformServices();
   </script>
 </body>
 </html>
