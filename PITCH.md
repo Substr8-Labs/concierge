@@ -101,8 +101,8 @@ Every file change is cryptographically anchored:
 
 ## Working prototype
 
-**Agent:** http://72.61.7.108:18795
-**Dashboard:** http://72.61.7.108:18796
+**Agent:** https://threadhq.io
+**Dashboard:** https://threadhq.io/dashboard
 
 - Agent reads SOUL.md → becomes "Alex from Acme"
 - Agent reads customer.md → knows returning customers
@@ -278,7 +278,7 @@ From raw conversation → actionable intelligence:
 ## Contact
 
 **Repo:** https://github.com/Substr8-Labs/concierge
-**Demo:** http://72.61.7.108:18795
+**Demo:** https://threadhq.io
 **Email:** rudi@substr8labs.com
 **X:** @substr8labs
 
